@@ -1,10 +1,13 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask_cors import CORS
 import os
 from services.satellite_service import fetch_sentinel_data, fetch_modis_data
 from services.analysis_service import analyze_pollution_levels, predict_risk_zones
 from services.gis_service import get_region_boundaries
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='frontend/dist')
+# Enable CORS for the React app
+CORS(app)
 
 @app.route('/')
 def index():
@@ -34,6 +37,15 @@ def get_region_boundary():
     region = request.args.get('region', 'Nagpur')
     boundary = get_region_boundaries(region)
     return jsonify(boundary)
+
+# Catch-all route to serve the React app
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_react_app(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

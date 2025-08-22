@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.cluster import KMeans
 from scipy import stats
+import json
 
 def analyze_pollution_levels(sentinel_data, modis_data):
     """
@@ -44,6 +45,8 @@ def analyze_pollution_levels(sentinel_data, modis_data):
     
     # Detect anomalies in pollution levels
     anomalies = detect_anomalies(daily_data)
+    # Convert anomaly dates to strings to ensure they're serializable
+    anomaly_dates = [str(date) for date in anomalies]
     
     # Add trend analysis
     trend_analysis = analyze_trends(daily_data)
@@ -51,14 +54,16 @@ def analyze_pollution_levels(sentinel_data, modis_data):
     # Convert to dictionary for API response
     result = []
     for date, row in daily_data.iterrows():
+        # Convert date to string for comparison and serialization
+        date_str = str(date)
         result.append({
-            'date': str(date),
+            'date': date_str,
             'no2_level': float(row.get('no2_value', 0)),
             'pm25_level': float(row.get('pm25_value', 0)),
             'pollution_index': float(row['pollution_index']),
             'aqi': float(row.get('aqi', 0)),
             'health_risk': float(row.get('health_risk', 0)),
-            'is_anomaly': date in anomalies,
+            'is_anomaly': date_str in anomaly_dates,  # Compare strings to strings
             'latitude': float(row.get('latitude_sentinel', row.get('latitude', 0))),
             'longitude': float(row.get('longitude_sentinel', row.get('longitude', 0))),
             'location': location  # Add location back to the result
@@ -66,6 +71,7 @@ def analyze_pollution_levels(sentinel_data, modis_data):
     
     # Add summary statistics and trends
     if len(result) > 0:
+        # Make sure all values are JSON serializable
         result[0]['summary'] = {
             'avg_no2': float(daily_data['no2_value'].mean() if 'no2_value' in daily_data else 0),
             'avg_pm25': float(daily_data['pm25_value'].mean() if 'pm25_value' in daily_data else 0),
@@ -73,7 +79,7 @@ def analyze_pollution_levels(sentinel_data, modis_data):
             'max_pm25': float(daily_data['pm25_value'].max() if 'pm25_value' in daily_data else 0),
             'days_exceeding_who_no2': int(daily_data['exceeds_who_no2'].sum() if 'exceeds_who_no2' in daily_data else 0),
             'days_exceeding_who_pm25': int(daily_data['exceeds_who_pm25'].sum() if 'exceeds_who_pm25' in daily_data else 0),
-            'trend': trend_analysis
+            'trend': make_json_serializable(trend_analysis)
         }
     
     return result
@@ -115,9 +121,9 @@ def predict_risk_zones(pollution_data):
             additional_data = {}
             if i < len(pollution_data):
                 if 'aqi' in pollution_data[i]:
-                    additional_data['aqi'] = pollution_data[i]['aqi']
+                    additional_data['aqi'] = float(pollution_data[i]['aqi'])
                 if 'health_risk' in pollution_data[i]:
-                    additional_data['health_risk'] = pollution_data[i]['health_risk']
+                    additional_data['health_risk'] = float(pollution_data[i]['health_risk'])
             
             risk_zone = {
                 'latitude': float(data_points[i][1]),
@@ -125,7 +131,7 @@ def predict_risk_zones(pollution_data):
                 'pollution_index': float(data_points[i][0]),
                 'risk_level': risk_mapping[cluster_id],
                 'location': location,  # Include location in risk zone data
-                'estimated_affected_population': estimate_affected_population(location, risk_mapping[cluster_id])
+                'estimated_affected_population': int(estimate_affected_population(location, risk_mapping[cluster_id]))
             }
             
             # Add additional data if available
@@ -135,11 +141,34 @@ def predict_risk_zones(pollution_data):
         return risk_zones
     else:
         # Not enough data for clustering
-        return [{'latitude': d['latitude'], 'longitude': d['longitude'], 
-                 'pollution_index': d['pollution_index'], 'risk_level': 'unknown',
+        return [{'latitude': float(d['latitude']), 'longitude': float(d['longitude']), 
+                 'pollution_index': float(d['pollution_index']), 'risk_level': 'unknown',
                  'location': location if location else None,
                  'estimated_affected_population': 0} 
                 for d in pollution_data]
+
+def make_json_serializable(obj):
+    """Helper function to ensure objects are JSON serializable"""
+    if isinstance(obj, dict):
+        return {k: make_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [make_json_serializable(item) for item in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient='records')
+    elif isinstance(obj, pd.Series):
+        return obj.to_dict()
+    elif hasattr(obj, 'isoformat'):  # For datetime objects
+        return obj.isoformat()
+    elif isinstance(obj, bool):  # Explicitly handle boolean
+        return bool(obj)
+    else:
+        return obj
 
 def calculate_aqi(data):
     """Calculate Air Quality Index based on PM2.5 and NO2 values."""
@@ -204,20 +233,26 @@ def detect_anomalies(data):
     anomalies = set()
     
     if 'no2_value' in data.columns and len(data) > 5:
-        # Calculate z-scores for NO2
-        z_scores = stats.zscore(data['no2_value'])
-        # Find dates with z-scores > 3 (outliers)
-        for date, z in zip(data.index, z_scores):
-            if abs(z) > 3:
-                anomalies.add(date)
+        try:
+            # Calculate z-scores for NO2
+            z_scores = stats.zscore(data['no2_value'])
+            # Find dates with z-scores > 3 (outliers)
+            for date, z in zip(data.index, z_scores):
+                if abs(z) > 3:
+                    anomalies.add(date)
+        except Exception as e:
+            print(f"Error detecting NO2 anomalies: {e}")
     
     if 'pm25_value' in data.columns and len(data) > 5:
-        # Calculate z-scores for PM2.5
-        z_scores = stats.zscore(data['pm25_value'])
-        # Find dates with z-scores > 3 (outliers)
-        for date, z in zip(data.index, z_scores):
-            if abs(z) > 3:
-                anomalies.add(date)
+        try:
+            # Calculate z-scores for PM2.5
+            z_scores = stats.zscore(data['pm25_value'])
+            # Find dates with z-scores > 3 (outliers)
+            for date, z in zip(data.index, z_scores):
+                if abs(z) > 3:
+                    anomalies.add(date)
+        except Exception as e:
+            print(f"Error detecting PM2.5 anomalies: {e}")
     
     return list(anomalies)
 
@@ -226,32 +261,38 @@ def analyze_trends(data):
     trends = {}
     
     if 'no2_value' in data.columns and len(data) >= 3:
-        # Calculate simple linear regression
-        x = np.arange(len(data))
-        y = data['no2_value'].values
-        slope, _, r_value, p_value, _ = stats.linregress(x, y)
-        
-        trends['no2_trend'] = {
-            'slope': float(slope),
-            'r_squared': float(r_value ** 2),
-            'p_value': float(p_value),
-            'is_significant': p_value < 0.05,
-            'direction': 'increasing' if slope > 0 else 'decreasing' if slope < 0 else 'stable'
-        }
+        try:
+            # Calculate simple linear regression
+            x = np.arange(len(data))
+            y = data['no2_value'].values
+            slope, _, r_value, p_value, _ = stats.linregress(x, y)
+            
+            trends['no2_trend'] = {
+                'slope': float(slope),
+                'r_squared': float(r_value ** 2),
+                'p_value': float(p_value),
+                'is_significant': bool(p_value < 0.05),  # Explicitly convert to Python bool
+                'direction': 'increasing' if slope > 0 else 'decreasing' if slope < 0 else 'stable'
+            }
+        except Exception as e:
+            print(f"Error analyzing NO2 trends: {e}")
     
     if 'pm25_value' in data.columns and len(data) >= 3:
-        # Calculate simple linear regression
-        x = np.arange(len(data))
-        y = data['pm25_value'].values
-        slope, _, r_value, p_value, _ = stats.linregress(x, y)
-        
-        trends['pm25_trend'] = {
-            'slope': float(slope),
-            'r_squared': float(r_value ** 2),
-            'p_value': float(p_value),
-            'is_significant': p_value < 0.05,
-            'direction': 'increasing' if slope > 0 else 'decreasing' if slope < 0 else 'stable'
-        }
+        try:
+            # Calculate simple linear regression
+            x = np.arange(len(data))
+            y = data['pm25_value'].values
+            slope, _, r_value, p_value, _ = stats.linregress(x, y)
+            
+            trends['pm25_trend'] = {
+                'slope': float(slope),
+                'r_squared': float(r_value ** 2),
+                'p_value': float(p_value),
+                'is_significant': bool(p_value < 0.05),  # Explicitly convert to Python bool
+                'direction': 'increasing' if slope > 0 else 'decreasing' if slope < 0 else 'stable'
+            }
+        except Exception as e:
+            print(f"Error analyzing PM2.5 trends: {e}")
     
     return trends
 
