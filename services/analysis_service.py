@@ -38,7 +38,10 @@ from services.weather_service import fetch_weather_data, correlate_weather_with_
 
 def analyze_pollution_levels(sentinel_data, modis_data):
     """
-    Combine and analyze pollution data from different sources with enhanced analysis.
+    Processes and analyzes satellite data to extract pollution insights
+    
+    Input: Raw satellite measurements from Sentinel-5P and MODIS
+    Output: Structured pollution metrics, trends, anomalies, and forecasts
     """
     # Merge data on timestamp
     combined_data = pd.merge(
@@ -826,7 +829,6 @@ def estimate_affected_population(location, risk_level, variant=0):
     Estimate the population affected by pollution in each risk zone.
     Enhanced to provide more variation between similar risk zones.
     """
-    # Population estimates for each location
     population = {
         'Nagpur': 2400000,
         'Mumbai': 12400000,
@@ -835,7 +837,6 @@ def estimate_affected_population(location, risk_level, variant=0):
         'Shanghai': 26000000
     }.get(location, 1000000)
     
-    # Base percentage of population in each risk level
     risk_percentages = {
         'high': 0.15,  # 15% of population in high risk areas
         'medium': 0.30,  # 30% of population in medium risk areas
