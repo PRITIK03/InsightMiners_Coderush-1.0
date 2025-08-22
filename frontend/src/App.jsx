@@ -14,7 +14,7 @@ function App() {
     startDate: '2023-01-01',
     endDate: '2023-12-31'
   });
-  const [activeTab, setActiveTab] = useState('charts');
+  const [activeTab, setActiveTab] = useState('insights');
 
   const loadData = async () => {
     setLoading(true);

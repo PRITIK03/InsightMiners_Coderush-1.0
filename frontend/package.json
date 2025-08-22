@@ -12,6 +12,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.12",
     "chart.js": "^4.5.0",
+    "chartjs-adapter-date-fns": "^3.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-leaflet": "^5.0.0",

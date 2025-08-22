@@ -1,15 +1,27 @@
+# Web framework
 flask==2.3.3
 werkzeug==2.3.7
 flask-cors==4.0.0
-# Use versions with pre-built wheels to avoid compilation issues
+
+# Data processing - newer versions compatible with Python 3.13
 numpy>=1.26.0
 pandas>=2.0.3
-# Use a newer scikit-learn or one with pre-built wheels
 scikit-learn>=1.3.2
-# Optional: Replace geopandas with a simpler alternative if installation issues persist
-geojson>=3.0.1
-shapely>=2.0.1
+
+# API and data handling
 requests>=2.31.0
 python-dotenv>=1.0.0
+
+# For simple GIS functionality without geopandas
+geojson>=3.0.1
+shapely>=2.0.1
+
+# AI model integration
+transformers>=4.35.0
+torch>=2.0.0
+sentence-transformers>=2.2.2
+prophet>=1.1.4
+
+# Development tools
 setuptools>=68.0.0
 wheel>=0.40.0

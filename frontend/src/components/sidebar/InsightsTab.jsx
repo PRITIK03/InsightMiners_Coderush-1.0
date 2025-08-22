@@ -13,6 +13,12 @@ const InsightsTab = ({ pollutionData }) => {
   
   const highRiskCount = pollutionData.riskZones.filter(z => z.risk_level === 'high').length;
   
+  // Get AI-generated insights if available
+  const aiInsights = pollutionData.pollutionLevels[0].ai_insights;
+  
+  // Get anomaly analysis if available
+  const anomalyAnalysis = pollutionData.pollutionLevels[0].anomaly_analysis;
+  
   // Calculate AQI (simplified version based on PM2.5)
   const calculateAQI = (pm25) => {
     if (pm25 <= 12) {
@@ -105,6 +111,43 @@ const InsightsTab = ({ pollutionData }) => {
         </div>
       </div>
       
+      {/* AI-generated Insights */}
+      {aiInsights && (
+        <div className="mb-6">
+          <h4 className="font-medium mb-2 flex items-center">
+            AI Analysis
+            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">AI</span>
+          </h4>
+          <div className="bg-white p-4 rounded-lg border border-blue-200 shadow-sm">
+            {/* Display as a paragraph instead of bullet points */}
+            <p className="text-gray-700">{aiInsights}</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Anomaly Analysis */}
+      {anomalyAnalysis && anomalyAnalysis.length > 0 && (
+        <div className="mb-6">
+          <h4 className="font-medium mb-2 flex items-center">
+            Anomaly Detection
+            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">AI</span>
+          </h4>
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <p className="mb-2 text-sm">The system detected {anomalyAnalysis.length} unusual pollution events:</p>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {anomalyAnalysis.map((anomaly, index) => (
+                <div key={index} className="border-l-4 border-red-400 pl-3 py-1 text-sm">
+                  <div><span className="font-medium">Date:</span> {anomaly.date}</div>
+                  <div><span className="font-medium">NO2:</span> {anomaly.no2_level.toFixed(1)} μg/m³</div>
+                  <div><span className="font-medium">PM2.5:</span> {anomaly.pm25_level.toFixed(1)} μg/m³</div>
+                  <div className="text-red-600 text-xs">{anomaly.reason}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Trend Analysis */}
       <div className="mb-6">
         <h4 className="font-medium mb-2">Trend Analysis</h4>
@@ -134,6 +177,26 @@ const InsightsTab = ({ pollutionData }) => {
         </div>
       </div>
       
+      {/* Trend Explanations */}
+      <div className="mb-6">
+        <h4 className="font-medium mb-2">Trend Explanations</h4>
+        <div className="bg-white p-4 rounded-lg border border-gray-200">
+          {pollutionData.pollutionLevels[0].trend_explanations ? (
+            <div className="space-y-2">
+              {pollutionData.pollutionLevels[0].trend_explanations.map((explanation, index) => (
+                <div key={index} className="text-sm p-2 bg-blue-50 rounded">
+                  {explanation}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm italic">
+              No trend explanations available. View the Weather tab for detailed weather correlations.
+            </p>
+          )}
+        </div>
+      </div>
+      
       {/* Policy Recommendations */}
       <div>
         <h4 className="font-medium mb-2">Policy Recommendations</h4>
@@ -155,3 +218,4 @@ const InsightsTab = ({ pollutionData }) => {
 };
 
 export default InsightsTab;
+

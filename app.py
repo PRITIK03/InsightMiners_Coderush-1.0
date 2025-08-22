@@ -5,6 +5,14 @@ from services.satellite_service import fetch_sentinel_data, fetch_modis_data
 from services.analysis_service import analyze_pollution_levels, predict_risk_zones
 from services.gis_service import get_region_boundaries
 
+# Check if weather_service.py exists and import it
+try:
+    from services.weather_service import fetch_weather_data
+    WEATHER_SERVICE_AVAILABLE = True
+except ImportError:
+    print("Weather service not available")
+    WEATHER_SERVICE_AVAILABLE = False
+
 app = Flask(__name__, static_folder='frontend/dist')
 # Enable CORS for the React app
 CORS(app)
@@ -31,6 +39,35 @@ def get_pollution_data():
         'pollutionLevels': pollution_levels,
         'riskZones': risk_zones
     })
+
+@app.route('/api/weather-data', methods=['GET'])
+def get_weather_data():
+    """Separate endpoint for fetching just weather data"""
+    if not WEATHER_SERVICE_AVAILABLE:
+        return jsonify({
+            'error': 'Weather service not available',
+            'weatherData': []
+        }), 404
+        
+    region = request.args.get('region', 'Nagpur')
+    start_date = request.args.get('start_date', '2023-01-01')
+    end_date = request.args.get('end_date', '2023-12-31')
+    
+    try:
+        # Fetch weather data
+        weather_data = fetch_weather_data(region, start_date, end_date)
+        
+        # Convert to list of dictionaries
+        weather_list = weather_data.to_dict('records')
+        
+        return jsonify({
+            'weatherData': weather_list
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'weatherData': []
+        }), 500
 
 @app.route('/api/region-boundary', methods=['GET'])
 def get_region_boundary():

@@ -56,10 +56,52 @@ function PulsingMarker({ position, color }) {
   return null;
 }
 
+// Component to adjust map view when data changes
+function MapAdjuster({ pollutionData }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (pollutionData?.riskZones?.length > 0) {
+      // Create bounds object to encompass all risk zones
+      const bounds = L.latLngBounds();
+      
+      // Check if all points have the same coordinates
+      let allSamePosition = true;
+      const firstZone = pollutionData.riskZones[0];
+      const firstLat = firstZone.latitude;
+      const firstLon = firstZone.longitude;
+      
+      pollutionData.riskZones.forEach(zone => {
+        if (Math.abs(zone.latitude - firstLat) > 0.001 || Math.abs(zone.longitude - firstLon) > 0.001) {
+          allSamePosition = false;
+        }
+        bounds.extend([zone.latitude, zone.longitude]);
+      });
+      
+      console.log("All risk zones at same position:", allSamePosition);
+      
+      // If all points are at the same position, use a fixed zoom level
+      if (allSamePosition) {
+        map.setView([firstLat, firstLon], 10);
+      } else {
+        // Otherwise fit to bounds
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 12,
+          animate: true,
+          duration: 1
+        });
+      }
+    }
+  }, [pollutionData, map]);
+  
+  return null;
+}
+
 const MapView = ({ pollutionData, regionBoundary, loading }) => {
   const [map, setMap] = useState(null);
   const [layers, setLayers] = useState({
-    densityMarkers: true, // Replace heatmap with density markers
+    densityMarkers: true,
     riskZones: true,
     boundary: true,
     pulsingMarkers: true
@@ -85,37 +127,6 @@ const MapView = ({ pollutionData, regionBoundary, loading }) => {
     }
   };
   
-  // Center map on data points when they load
-  useEffect(() => {
-    if (map && pollutionData && pollutionData.riskZones && pollutionData.riskZones.length > 0) {
-      // Get center point of all zones
-      const latitudes = pollutionData.riskZones.map(zone => zone.latitude);
-      const longitudes = pollutionData.riskZones.map(zone => zone.longitude);
-      
-      const avgLat = latitudes.reduce((a, b) => a + b, 0) / latitudes.length;
-      const avgLng = longitudes.reduce((a, b) => a + b, 0) / longitudes.length;
-      
-      // Calculate appropriate zoom level based on spread of points
-      const latRange = Math.max(...latitudes) - Math.min(...latitudes);
-      const lngRange = Math.max(...longitudes) - Math.min(...longitudes);
-      const maxRange = Math.max(latRange, lngRange);
-      
-      // Rough heuristic for zoom level
-      let zoomLevel = 12;
-      if (maxRange > 0.5) zoomLevel = 9;
-      if (maxRange > 1) zoomLevel = 8;
-      if (maxRange > 2) zoomLevel = 7;
-      
-      map.setView([avgLat, avgLng], zoomLevel);
-      
-      // Apply a smooth fly-to animation
-      map.flyTo([avgLat, avgLng], zoomLevel, {
-        animate: true,
-        duration: 1.5
-      });
-    }
-  }, [map, pollutionData]);
-
   const toggleLayer = (layerKey) => {
     setLayers(prevLayers => ({
       ...prevLayers,
@@ -137,31 +148,35 @@ const MapView = ({ pollutionData, regionBoundary, loading }) => {
   };
   
   const getGradientStyle = (riskLevel) => {
-    let color1, color2;
+    let color1, color2, opacity;
     
     switch(riskLevel) {
       case 'high':
-        color1 = 'rgba(220, 53, 69, 0.9)';
-        color2 = 'rgba(255, 99, 132, 0.6)';
+        color1 = 'rgba(220, 53, 69, 0.6)';
+        color2 = 'rgba(255, 99, 132, 0.8)';
+        opacity = 0.5;
         break;
       case 'medium':
-        color1 = 'rgba(255, 193, 7, 0.9)';
-        color2 = 'rgba(255, 205, 86, 0.6)';
+        color1 = 'rgba(255, 193, 7, 0.6)';
+        color2 = 'rgba(255, 205, 86, 0.8)';
+        opacity = 0.4;
         break;
       case 'low':
-        color1 = 'rgba(40, 167, 69, 0.9)';
-        color2 = 'rgba(75, 192, 192, 0.6)';
+        color1 = 'rgba(40, 167, 69, 0.5)';
+        color2 = 'rgba(75, 192, 192, 0.7)';
+        opacity = 0.3;
         break;
       default:
-        color1 = 'rgba(13, 110, 253, 0.9)';
-        color2 = 'rgba(13, 202, 240, 0.6)';
+        color1 = 'rgba(13, 110, 253, 0.6)';
+        color2 = 'rgba(13, 202, 240, 0.8)';
+        opacity = 0.3;
     }
     
     return {
-      fillOpacity: 0.6,
+      fillOpacity: opacity,
       fillColor: color1,
       color: color2,
-      weight: 1
+      weight: 1.5
     };
   };
 
@@ -170,15 +185,73 @@ const MapView = ({ pollutionData, regionBoundary, loading }) => {
   let highRiskPoints = [];
   
   if (pollutionData && pollutionData.riskZones) {
-    // Use for density visualization (alternative to heatmap)
+    // Debug the positions of risk zones
+    console.log("Risk zone positions:", pollutionData.riskZones.map(zone => 
+      `${zone.risk_level}: [${zone.latitude}, ${zone.longitude}]`
+    ));
+
+    // Apply offset to distribute risk zones if they're all at the same position
+    const firstZone = pollutionData.riskZones[0];
+    let allSamePosition = true;
+    
+    // Check if all coordinates are the same
+    pollutionData.riskZones.forEach(zone => {
+      if (Math.abs(zone.latitude - firstZone.latitude) > 0.001 || 
+          Math.abs(zone.longitude - firstZone.longitude) > 0.001) {
+        allSamePosition = false;
+      }
+    });
+    
+    // If all zones are at the same position, distribute them in a pattern
+    if (allSamePosition && pollutionData.riskZones.length > 1) {
+      console.log("Applying distribution to overlapping risk zones");
+      
+      // Create offsets based on risk level
+      const offsetMap = {
+        high: { lat: 0.02, lng: 0.02 },
+        medium: { lat: -0.02, lng: 0.02 },
+        low: { lat: 0, lng: -0.02 }
+      };
+      
+      // Count zones by risk level to create dynamic offsets
+      const riskCounts = { high: 0, medium: 0, low: 0 };
+      pollutionData.riskZones.forEach(zone => {
+        if (zone.risk_level in riskCounts) {
+          riskCounts[zone.risk_level]++;
+        }
+      });
+      
+      // Apply offsets to create a distributed pattern
+      pollutionData.riskZones = pollutionData.riskZones.map((zone, idx) => {
+        // For each risk level, arrange in a semi-circle pattern
+        const level = zone.risk_level;
+        const count = riskCounts[level] || 1;
+        const position = idx % count;
+        const angle = (Math.PI / count) * position;
+        const distance = 0.02; // ~2km
+        
+        // Calculate offset based on angle and distance
+        const offsetLat = Math.sin(angle) * distance * (level === 'high' ? 1 : level === 'medium' ? 0.8 : 0.6);
+        const offsetLng = Math.cos(angle) * distance * (level === 'high' ? 1 : level === 'medium' ? 0.8 : 0.6);
+        
+        return {
+          ...zone,
+          originalLat: zone.latitude,
+          originalLng: zone.longitude,
+          latitude: zone.latitude + offsetLat,
+          longitude: zone.longitude + offsetLng
+        };
+      });
+    }
+
+    // Continue with normal processing
     densityPoints = pollutionData.riskZones.map(zone => ({
       position: [zone.latitude, zone.longitude],
       intensity: zone.pollution_index * 10,
-      radius: zone.pollution_index * 5 + 5, // Scale radius based on pollution
+      radius: zone.pollution_index * 5 + 5,
       color: getRiskColor(zone.risk_level, 0.3)
     }));
     
-    // Get high risk points for pulsing markers
     highRiskPoints = pollutionData.riskZones
       .filter(zone => zone.risk_level === 'high')
       .map(zone => ({
@@ -215,7 +288,7 @@ const MapView = ({ pollutionData, regionBoundary, loading }) => {
       </div>
       
       <MapContainer 
-        center={[21.1458, 79.0882]} 
+        center={[21.1458, 79.0882]} // Initial center, will be adjusted by MapAdjuster
         zoom={10} 
         style={{ height: '100%', width: '100%' }}
         whenCreated={setMap}
@@ -226,7 +299,18 @@ const MapView = ({ pollutionData, regionBoundary, loading }) => {
           url={baseMaps[selectedBaseMap].url}
         />
         
-        {/* Density points visualization (alternative to heatmap) */}
+        {/* Component to automatically adjust map view based on data */}
+        <MapAdjuster pollutionData={pollutionData} />
+        
+        {/* Info overlay when all risk zones are in the same location */}
+        {pollutionData && pollutionData.riskZones && pollutionData.riskZones.length > 0 && pollutionData.riskZones[0].originalLat && (
+          <div className="absolute top-16 left-3 z-10 bg-white bg-opacity-80 rounded-md shadow-md p-2 max-w-xs text-xs">
+            <p className="font-bold text-orange-600">Note: Risk zones have been artificially distributed for better visibility.</p>
+            <p>All pollution data points were detected at the same location.</p>
+          </div>
+        )}
+        
+        {/* Density points visualization */}
         {layers.densityMarkers && densityPoints.map((point, index) => (
           <CircleMarker
             key={`density-${index}`}
@@ -258,16 +342,23 @@ const MapView = ({ pollutionData, regionBoundary, loading }) => {
         {layers.riskZones && pollutionData && pollutionData.riskZones && pollutionData.riskZones.map((zone, index) => {
           const style = getGradientStyle(zone.risk_level);
           
-          // Calculate radius based on population or fixed value
-          const baseRadius = zone.estimated_affected_population 
-            ? Math.sqrt(zone.estimated_affected_population) * 2
-            : 800;
+          // Calculate radius based on pollution level and affected population
+          let baseRadius = 800; // Default base radius
+          
+          if (zone.estimated_affected_population) {
+            // Scale based on affected population with a square root to prevent extremely large circles
+            baseRadius = Math.sqrt(zone.estimated_affected_population) * 2;
+          } else if (zone.pollution_index) {
+            // If no population data, scale based on pollution index
+            baseRadius = zone.pollution_index * 800;
+          }
             
+          // Apply risk level multiplier  
           const radius = zone.risk_level === 'high' 
-            ? baseRadius * 1.5 
+            ? baseRadius * 1.2
             : zone.risk_level === 'medium' 
-              ? baseRadius * 1.2 
-              : baseRadius;
+              ? baseRadius * 1.0
+              : baseRadius * 0.8;
             
           return (
             <Circle
@@ -306,6 +397,14 @@ const MapView = ({ pollutionData, regionBoundary, loading }) => {
                     
                     <div className="text-gray-600 text-xs">Location:</div>
                     <div className="font-semibold text-right">{zone.location}</div>
+                    
+                    {/* Show original coordinates if they were adjusted */}
+                    {zone.originalLat && (
+                      <>
+                        <div className="text-gray-600 text-xs">Note:</div>
+                        <div className="font-semibold text-right text-orange-600">Position adjusted for visibility</div>
+                      </>
+                    )}
                   </div>
                   
                   <div className="text-xs text-center mt-1 text-gray-500">
