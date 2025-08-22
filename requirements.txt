@@ -1,0 +1,14 @@
+flask==2.3.3
+werkzeug==2.3.7
+# Use versions with pre-built wheels to avoid compilation issues
+numpy>=1.26.0
+pandas>=2.0.3
+# Use a newer scikit-learn or one with pre-built wheels
+scikit-learn>=1.3.2
+# Optional: Replace geopandas with a simpler alternative if installation issues persist
+geojson>=3.0.1
+shapely>=2.0.1
+requests>=2.31.0
+python-dotenv>=1.0.0
+setuptools>=68.0.0
+wheel>=0.40.0

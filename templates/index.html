@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pollution Detection Dashboard</title>
+    <!-- Leaflet CSS for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Chart.js for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Heat plugin for heatmap -->
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-title {
+            flex: 1;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        .dashboard {
+            display: flex;
+            flex: 1;
+        }
+        .map-container {
+            flex: 2;
+            height: 100%;
+            position: relative;
+        }
+        #map {
+            height: 100%;
+        }
+        .sidebar {
+            flex: 1;
+            padding: 1rem;
+            background-color: #f5f5f5;
+            overflow-y: auto;
+        }
+        .chart-container {
+            margin-bottom: 1rem;
+            background-color: white;
+            padding: 1rem;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .insights-panel {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .recommendation {
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+            margin: 10px 0;
+        }
+        .critical {
+            border-left-color: #e74c3c;
+        }
+        .warning {
+            border-left-color: #f39c12;
+        }
+        .good {
+            border-left-color: #2ecc71;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 12px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+        .map-legend {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .legend-item {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .high-risk { background-color: rgba(255, 0, 0, 0.7); }
+        .medium-risk { background-color: rgba(255, 165, 0, 0.7); }
+        .low-risk { background-color: rgba(0, 128, 0, 0.7); }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            display: none;
+        }
+        .tab-container {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            background: #e9ecef;
+            border-radius: 5px 5px 0 0;
+            margin-right: 2px;
+        }
+        .tab.active {
+            background: white;
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Add styles for the tooltip */
+        .info-tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 5px;
+            cursor: help;
+        }
+        .info-tooltip::after {
+            content: "?";
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            line-height: 16px;
+            text-align: center;
+            border-radius: 50%;
+            background-color: #ccc;
+            color: white;
+            font-size: 12px;
+        }
+        .info-tooltip .tooltip-content {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+        .info-tooltip:hover .tooltip-content {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <h1>Pollution Detection System</h1>
+                <p>Satellite-based monitoring of air quality and pollution</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn" id="export-pdf">Export Report</button>
+                <button class="btn" id="view-recommendations">View Recommendations</button>
+            </div>
+        </header>
+        
+        <div class="dashboard">
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="loading" id="loading-indicator">
+                    Loading pollution data...
+                </div>
+                <div class="map-legend">
+                    <h3>Risk Zones</h3>
+                    <div class="legend-item">
+                        <span class="legend-color high-risk"></span>
+                        <span>High Risk</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color medium-risk"></span>
+                        <span>Medium Risk</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color low-risk"></span>
+                        <span>Low Risk</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <div class="controls">
+                    <h3>Filter Data</h3>
+                    <div>
+                        <label for="region">Region:</label>
+                        <select id="region">
+                            <option value="Nagpur">Nagpur</option>
+                            <option value="Mumbai">Mumbai</option>
+                            <option value="Delhi">Delhi</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="start-date">Start Date:</label>
+                        <input type="date" id="start-date" value="2023-01-01">
+                    </div>
+                    <div>
+                        <label for="end-date">End Date:</label>
+                        <input type="date" id="end-date" value="2023-12-31">
+                    </div>
+                    <button id="update-data">Update</button>
+                </div>
+                
+                <div class="tab-container">
+                    <div class="tab active" data-tab="charts">Charts</div>
+                    <div class="tab" data-tab="insights">Insights</div>
+                    <div class="tab" data-tab="impact">Impact Analysis</div>
+                </div>
+                
+                <div id="charts-tab" class="tab-content active">
+                    <div class="chart-container">
+                        <h3>NO2 Levels Over Time</h3>
+                        <canvas id="no2Chart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>PM2.5 Levels Over Time</h3>
+                        <canvas id="pm25Chart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <h3>Risk Zone Distribution</h3>
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                </div>
+                
+                <div id="insights-tab" class="tab-content">
+                    <div class="insights-panel">
+                        <h3>Key Insights</h3>
+                        
+                        <div class="stat-grid">
+                            <div class="stat-box">
+                                <div class="stat-value" id="avg-no2">--</div>
+                                <div class="stat-label">
+                                    Average NO2 (μg/m³) 
+                                    <div class="info-tooltip">
+                                        <span class="tooltip-content">WHO guideline: 40 μg/m³ (annual mean)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value" id="avg-pm25">--</div>
+                                <div class="stat-label">
+                                    Average PM2.5 (μg/m³)
+                                    <div class="info-tooltip">
+                                        <span class="tooltip-content">WHO guideline: 25 μg/m³ (24-hour mean)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value" id="aqi-value">--</div>
+                                <div class="stat-label">Air Quality Index</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value" id="risk-areas">--</div>
+                                <div class="stat-label">High Risk Areas</div>
+                            </div>
+                        </div>
+                        
+                        <h4>Trend Analysis</h4>
+                        <p id="trend-analysis">Analyzing pollution trends...</p>
+                        
+                        <h4>Policy Recommendations</h4>
+                        <div id="recommendations-list">
+                            <!-- Recommendations will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="impact-tab" class="tab-content">
+                    <div class="insights-panel">
+                        <h3>Health & Economic Impact</h3>
+                        
+                        <div class="chart-container">
+                            <h4>Estimated Health Impact</h4>
+                            <canvas id="healthImpactChart"></canvas>
+                        </div>
+                        
+                        <h4>Demographic Exposure</h4>
+                        <p id="demographic-analysis">Analyzing demographic exposure...</p>
+                        
+                        <h4>Economic Impact</h4>
+                        <div class="stat-grid">
+                            <div class="stat-box">
+                                <div class="stat-value" id="healthcare-costs">--</div>
+                                <div class="stat-label">Est. Healthcare Costs (₹)</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value" id="productivity-loss">--</div>
+                                <div class="stat-label">Est. Productivity Loss (₹)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize the map - centered on Nagpur
+        const map = L.map('map').setView([21.1458, 79.0882], 10);
+        
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        // Variables to store charts and map layers
+        let no2Chart, pm25Chart, riskChart, healthImpactChart;
+        let markers = L.layerGroup().addTo(map);
+        let heatLayer = null;
+        let polygonLayer = L.layerGroup().addTo(map);
+        let currentPollutionData = null;
+        
+        // Function to fetch and display data
+        async function fetchData() {
+            const loadingIndicator = document.getElementById('loading-indicator');
+            loadingIndicator.style.display = 'block';
+            
+            const region = document.getElementById('region').value;
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            try {
+                const response = await fetch(`/api/pollution-data?region=${region}&start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                
+                // Save the current data for later use
+                currentPollutionData = data;
+                
+                // Center map on the data location
+                if (data.pollutionLevels && data.pollutionLevels.length > 0) {
+                    const firstPoint = data.pollutionLevels[0];
+                    map.setView([firstPoint.latitude, firstPoint.longitude], 10);
+                }
+                
+                updateCharts(data);
+                updateMap(data);
+                updateInsights(data);
+                
+                // Also fetch region boundaries
+                try {
+                    const boundaryResponse = await fetch(`/api/region-boundary?region=${region}`);
+                    const boundaryData = await boundaryResponse.json();
+                    if (boundaryData) {
+                        addRegionBoundary(boundaryData);
+                    }
+                } catch (error) {
+                    console.warn("Could not fetch region boundary:", error);
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+        
+        // Function to add region boundary to map
+        function addRegionBoundary(boundaryData) {
+            polygonLayer.clearLayers();
+            
+            if (boundaryData && boundaryData.features) {
+                const geoJsonLayer = L.geoJSON(boundaryData, {
+                    style: {
+                        color: "#3388ff",
+                        weight: 2,
+                        opacity: 0.6,
+                        fillOpacity: 0.1
+                    }
+                }).addTo(polygonLayer);
+                
+                // Zoom to fit the boundary
+                try {
+                    map.fitBounds(geoJsonLayer.getBounds());
+                } catch (e) {
+                    console.warn("Could not fit to boundary bounds:", e);
+                }
+            }
+        }
+        
+        // Function to update charts with new data
+        function updateCharts(data) {
+            // Extract dates and values
+            const dates = data.pollutionLevels.map(d => d.date);
+            const no2Values = data.pollutionLevels.map(d => d.no2_level);
+            const pm25Values = data.pollutionLevels.map(d => d.pm25_level);
+            
+            // Count risk zones by level
+            const riskCounts = {high: 0, medium: 0, low: 0, unknown: 0};
+            data.riskZones.forEach(zone => {
+                riskCounts[zone.risk_level]++;
+            });
+            
+            // Update or create NO2 chart
+            if (no2Chart) {
+                no2Chart.data.labels = dates;
+                no2Chart.data.datasets[0].data = no2Values;
+                no2Chart.update();
+            } else {
+                const no2Ctx = document.getElementById('no2Chart').getContext('2d');
+                no2Chart = new Chart(no2Ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'NO2 (µg/m³)',
+                            data: no2Values,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    }
+                });
+            }
+            
+            // Update or create PM2.5 chart
+            if (pm25Chart) {
+                pm25Chart.data.labels = dates;
+                pm25Chart.data.datasets[0].data = pm25Values;
+                pm25Chart.update();
+            } else {
+                const pm25Ctx = document.getElementById('pm25Chart').getContext('2d');
+                pm25Chart = new Chart(pm25Ctx, {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [{
+                            label: 'PM2.5 (µg/m³)',
+                            data: pm25Values,
+                            borderColor: 'rgb(255, 99, 132)',
+                            tension: 0.1
+                        }]
+                    }
+                });
+            }
+            
+            // Update or create risk distribution chart
+            if (riskChart) {
+                riskChart.data.datasets[0].data = [
+                    riskCounts.high,
+                    riskCounts.medium,
+                    riskCounts.low
+                ];
+                riskChart.update();
+            } else {
+                const riskCtx = document.getElementById('riskChart').getContext('2d');
+                riskChart = new Chart(riskCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+                        datasets: [{
+                            data: [riskCounts.high, riskCounts.medium, riskCounts.low],
+                            backgroundColor: ['rgba(255, 0, 0, 0.7)', 'rgba(255, 165, 0, 0.7)', 'rgba(0, 128, 0, 0.7)']
+                        }]
+                    }
+                });
+            }
+        }
+        
+        // Function to update map with risk zones
+        function updateMap(data) {
+            // Clear existing markers
+            markers.clearLayers();
+            
+            // Remove existing heat layer if any
+            if (heatLayer) {
+                map.removeLayer(heatLayer);
+                heatLayer = null;
+            }
+            
+            // Prepare heat map data
+            const heatMapData = [];
+            
+            // Add larger circle zones for each risk level
+            data.riskZones.forEach(zone => {
+                let color, fillColor, radius;
+                switch(zone.risk_level) {
+                    case 'high': 
+                        color = '#ff0000'; 
+                        fillColor = 'rgba(255, 0, 0, 0.4)';
+                        radius = 2000;  // 2km radius for high risk
+                        break;
+                    case 'medium': 
+                        color = '#ffa500'; 
+                        fillColor = 'rgba(255, 165, 0, 0.3)';
+                        radius = 1500;  // 1.5km for medium
+                        break;
+                    case 'low': 
+                        color = '#008000'; 
+                        fillColor = 'rgba(0, 128, 0, 0.2)';
+                        radius = 1000;  // 1km for low
+                        break;
+                    default: 
+                        color = '#0000ff';
+                        fillColor = 'rgba(0, 0, 255, 0.2)';
+                        radius = 800;
+                }
+                
+                // Add circular zone
+                L.circle([zone.latitude, zone.longitude], {
+                    color: color,
+                    fillColor: fillColor,
+                    fillOpacity: 0.5,
+                    radius: radius
+                }).bindPopup(`
+                    <h3>Pollution Risk Zone</h3>
+                    <p><strong>Risk Level:</strong> ${zone.risk_level.charAt(0).toUpperCase() + zone.risk_level.slice(1)}</p>
+                    <p><strong>Pollution Index:</strong> ${zone.pollution_index.toFixed(2)}</p>
+                    <p><strong>Location:</strong> ${zone.location || "Unknown"}</p>
+                `).addTo(markers);
+                
+                // Add marker at center of zone
+                const marker = L.circleMarker([zone.latitude, zone.longitude], {
+                    radius: 6,
+                    fillColor: color,
+                    color: 'white',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                }).bindPopup(`
+                    <h3>Pollution Risk Zone</h3>
+                    <p><strong>Risk Level:</strong> ${zone.risk_level.charAt(0).toUpperCase() + zone.risk_level.slice(1)}</p>
+                    <p><strong>Pollution Index:</strong> ${zone.pollution_index.toFixed(2)}</p>
+                    <p><strong>Location:</strong> ${zone.location || "Unknown"}</p>
+                `);
+                
+                markers.addLayer(marker);
+                
+                // Add data point for heat map - intensity based on pollution index
+                heatMapData.push([
+                    zone.latitude, 
+                    zone.longitude, 
+                    zone.pollution_index * 5  // Scale for better visibility
+                ]);
+            });
+            
+            // Create heat map layer if we have enough data points
+            if (heatMapData.length > 0) {
+                heatLayer = L.heatLayer(heatMapData, {
+                    radius: 25,
+                    blur: 15,
+                    maxZoom: 17,
+                    gradient: {0.4: 'blue', 0.6: 'lime', 0.8: 'yellow', 0.9: 'orange', 1.0: 'red'}
+                }).addTo(map);
+            }
+            
+            // Add a route to the API endpoint for region boundaries
+            // This will be handled on the backend
+        }
+        
+        // Function to update insights panel with analysis
+        function updateInsights(data) {
+            if (!data.pollutionLevels || data.pollutionLevels.length === 0) return;
+            
+            // Calculate average values
+            const no2Values = data.pollutionLevels.map(d => d.no2_level);
+            const pm25Values = data.pollutionLevels.map(d => d.pm25_level);
+            
+            const avgNo2 = no2Values.reduce((sum, val) => sum + val, 0) / no2Values.length;
+            const avgPm25 = pm25Values.reduce((sum, val) => sum + val, 0) / pm25Values.length;
+            
+            // Update stat boxes
+            document.getElementById('avg-no2').textContent = avgNo2.toFixed(1);
+            document.getElementById('avg-pm25').textContent = avgPm25.toFixed(1);
+            
+            // Calculate AQI (simplified version based on PM2.5)
+            let aqi = calculateAQI(avgPm25);
+            document.getElementById('aqi-value').textContent = aqi;
+            
+            // Count high risk areas
+            const highRiskCount = data.riskZones.filter(z => z.risk_level === 'high').length;
+            document.getElementById('risk-areas').textContent = highRiskCount;
+            
+            // Trend analysis
+            const trendText = analyzeTrends(no2Values, pm25Values);
+            document.getElementById('trend-analysis').textContent = trendText;
+            
+            // Generate recommendations
+            const recommendations = generateRecommendations(avgNo2, avgPm25, highRiskCount);
+            const recsContainer = document.getElementById('recommendations-list');
+            recsContainer.innerHTML = '';
+            
+            recommendations.forEach(rec => {
+                const recDiv = document.createElement('div');
+                recDiv.className = `recommendation ${rec.severity}`;
+                recDiv.textContent = rec.text;
+                recsContainer.appendChild(recDiv);
+            });
+            
+            // Update health impact chart
+            updateHealthImpactChart(avgPm25);
+            
+            // Update demographic analysis
+            const demoAnalysis = `In the selected region, approximately ${formatNumber(estimateExposedPopulation())} people 
+                                  are exposed to elevated pollution levels. This includes an estimated 
+                                  ${formatNumber(Math.round(estimateExposedPopulation() * 0.12))} vulnerable individuals 
+                                  (elderly and children under 5).`;
+            document.getElementById('demographic-analysis').textContent = demoAnalysis;
+            
+            // Update economic impact
+            const healthcareCosts = estimateHealthcareCosts(avgPm25, estimateExposedPopulation());
+            const productivityLoss = estimateProductivityLoss(avgPm25, estimateExposedPopulation());
+            
+            document.getElementById('healthcare-costs').textContent = formatCurrency(healthcareCosts);
+            document.getElementById('productivity-loss').textContent = formatCurrency(productivityLoss);
+        }
+        
+        // Helper function for calculating AQI from PM2.5
+        function calculateAQI(pm25) {
+            // Simplified AQI calculation based on PM2.5
+            if (pm25 <= 12) {
+                return Math.round((50 - 0) / (12 - 0) * (pm25 - 0) + 0);
+            } else if (pm25 <= 35.4) {
+                return Math.round((100 - 51) / (35.4 - 12.1) * (pm25 - 12.1) + 51);
+            } else if (pm25 <= 55.4) {
+                return Math.round((150 - 101) / (55.4 - 35.5) * (pm25 - 35.5) + 101);
+            } else if (pm25 <= 150.4) {
+                return Math.round((200 - 151) / (150.4 - 55.5) * (pm25 - 55.5) + 151);
+            } else if (pm25 <= 250.4) {
+                return Math.round((300 - 201) / (250.4 - 150.5) * (pm25 - 150.5) + 201);
+            } else if (pm25 <= 350.4) {
+                return Math.round((400 - 301) / (350.4 - 250.5) * (pm25 - 250.5) + 301);
+            } else {
+                return Math.round((500 - 401) / (500.4 - 350.5) * (pm25 - 350.5) + 401);
+            }
+        }
+        
+        // Function to analyze trends in the data
+        function analyzeTrends(no2Values, pm25Values) {
+            // Simple linear trend analysis
+            const no2Trend = no2Values[no2Values.length - 1] - no2Values[0];
+            const pm25Trend = pm25Values[pm25Values.length - 1] - pm25Values[0];
+            
+            let trendText = '';
+            
+            if (no2Trend > 0 && pm25Trend > 0) {
+                trendText = `Both NO2 and PM2.5 levels are showing an increasing trend. This suggests deteriorating air quality that may require immediate attention.`;
+            } else if (no2Trend < 0 && pm25Trend < 0) {
+                trendText = `Both NO2 and PM2.5 levels are showing a decreasing trend. Current pollution control measures may be effective.`;
+            } else if (no2Trend > 0) {
+                trendText = `NO2 levels are increasing, which may indicate rising vehicular pollution or industrial activity.`;
+            } else if (pm25Trend > 0) {
+                trendText = `PM2.5 levels are increasing, which could be related to construction activities, dust, or combustion sources.`;
+            } else {
+                trendText = `Pollution levels appear to be relatively stable over the selected time period.`;
+            }
+            
+            return trendText;
+        }
+        
+        // Function to generate policy recommendations
+        function generateRecommendations(avgNo2, avgPm25, highRiskCount) {
+            const recommendations = [];
+            
+            if (avgPm25 > 55.4) { // Unhealthy level of PM2.5
+                recommendations.push({
+                    severity: 'critical',
+                    text: 'Implement immediate vehicle restrictions in high-risk zones to reduce particulate matter.'
+                });
+            }
+            
+            if (avgNo2 > 40) { // Above WHO guideline for NO2
+                recommendations.push({
+                    severity: 'warning',
+                    text: 'Strengthen industrial emission standards and increase monitoring of NOx-emitting facilities.'
+                });
+            }
+            
+            if (highRiskCount >= 3) {
+                recommendations.push({
+                    severity: 'critical',
+                    text: 'Develop emergency response plan for multiple high-risk pollution zones, including public health alerts.'
+                });
+            }
+            
+            if (avgPm25 > 25) { // Above WHO guideline for PM2.5
+                recommendations.push({
+                    severity: 'warning',
+                    text: 'Increase green barriers and urban forests to act as pollution sinks, especially around high-risk zones.'
+                });
+            }
+            
+            if (recommendations.length === 0) {
+                recommendations.push({
+                    severity: 'good',
+                    text: 'Current pollution levels are within acceptable limits. Continue monitoring and maintaining current policies.'
+                });
+            }
+            
+            return recommendations;
+        }
+        
+        // Function to update health impact chart
+        function updateHealthImpactChart(avgPm25) {
+            const exposedPopulation = estimateExposedPopulation();
+            
+            // Estimate health impacts (simplified model)
+            const respiratoryIssues = Math.round(exposedPopulation * avgPm25 * 0.0007);
+            const cardiovascularIssues = Math.round(exposedPopulation * avgPm25 * 0.0005);
+            const asthmaExacerbations = Math.round(exposedPopulation * avgPm25 * 0.0012);
+            const workdaysMissed = Math.round(exposedPopulation * avgPm25 * 0.003);
+            
+            const ctx = document.getElementById('healthImpactChart').getContext('2d');
+            
+            if (healthImpactChart) {
+                healthImpactChart.destroy();
+            }
+            
+            healthImpactChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Respiratory Issues', 'Cardiovascular Issues', 'Asthma Exacerbations', 'Work Days Missed'],
+                    datasets: [{
+                        label: 'Estimated Cases',
+                        data: [respiratoryIssues, cardiovascularIssues, asthmaExacerbations, workdaysMissed],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${formatNumber(context.raw)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Helper function to estimate exposed population
+        function estimateExposedPopulation() {
+            // This would normally come from census data - using mock data for demo
+            const regionPopulations = {
+                'Nagpur': 2400000,
+                'Mumbai': 12400000,
+                'Delhi': 19000000,
+                'London': 8900000
+            };
+            
+            const region = document.getElementById('region').value;
+            const population = regionPopulations[region] || 1000000;
+            
+            // Estimate that about 30% of population is in high pollution areas
+            return Math.round(population * 0.3);
+        }
+        
+        // Helper function to estimate healthcare costs
+        function estimateHealthcareCosts(avgPm25, exposedPopulation) {
+            // Very simplified model - in reality this would be much more complex
+            const annualPerPersonCost = 1200; // Cost in INR per person per year per 10 μg/m³ of PM2.5
+            return Math.round(exposedPopulation * annualPerPersonCost * (avgPm25 / 10));
+        }
+        
+        // Helper function to estimate productivity loss
+        function estimateProductivityLoss(avgPm25, exposedPopulation) {
+            // Simplified model
+            const dailyWage = 500; // Average daily wage in INR
+            const workingPopulation = exposedPopulation * 0.65; // Assuming 65% are working age
+            const daysLostPer100 = avgPm25 * 0.03; // Days lost per 100 people
+            
+            return Math.round(workingPopulation * daysLostPer100 * dailyWage / 100);
+        }
+        
+        // Helper function to format currency
+        function formatCurrency(value) {
+            if (value >= 10000000) {
+                return (value / 10000000).toFixed(2) + ' Cr';
+            } else if (value >= 100000) {
+                return (value / 100000).toFixed(2) + ' L';
+            } else if (value >= 1000) {
+                return (value / 1000).toFixed(0) + 'K';
+            } else {
+                return value.toString();
+            }
+        }
+        
+        // Helper function to format large numbers
+        function formatNumber(value) {
+            if (value >= 1000000) {
+                return (value / 1000000).toFixed(2) + ' million';
+            } else if (value >= 1000) {
+                return (value / 1000).toFixed(1) + 'K';
+            } else {
+                return value.toString();
+            }
+        }
+        
+        // Tab switching functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Add active class to clicked tab and corresponding content
+                this.classList.add('active');
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Export PDF functionality (mock)
+        document.getElementById('export-pdf').addEventListener('click', function() {
+            alert('Generating report PDF... This feature would create a detailed PDF report with all pollution data and recommendations for government officials.');
+        });
+        
+        // View recommendations functionality
+        document.getElementById('view-recommendations').addEventListener('click', function() {
+            // Switch to the insights tab
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector('[data-tab="insights"]').classList.add('active');
+            document.getElementById('insights-tab').classList.add('active');
+            
+            // Scroll to recommendations
+            const recsElement = document.getElementById('recommendations-list');
+            recsElement.scrollIntoView({ behavior: 'smooth' });
+        });
+        
+        // Event listeners
+        document.getElementById('update-data').addEventListener('click', fetchData);
+        
+        // Initial data load
+        document.addEventListener('DOMContentLoaded', fetchData);
+    </script>
+</body>
+</html>
