@@ -1,14 +1,48 @@
- import React, { useState } from 'react';
+import React, { useState } from 'react';
+import ReportGenerator from '../utils/ReportGenerator';
+import PolicyRecommendationsModal from './PolicyRecommendationsModal';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
+
+  const handleExportReport = () => {
+    // Try multiple sources to get the most complete data
+    try {
+      let data = window.currentPollutionData;
+      
+      // Store selected region for later use
+      if (data && data.pollutionLevels && data.pollutionLevels.length > 0) {
+        const region = data.pollutionLevels[0].location;
+        window.selectedRegion = region;
+        localStorage.setItem('selectedRegion', region);
+      }
+      
+      // Combine with any region info from localStorage
+      if (data && !data.region) {
+        data.region = localStorage.getItem('selectedRegion') || 'Nagpur';
+      }
+      
+      console.log("Exporting report with data:", data);
+      ReportGenerator.exportPDF(data);
+    } catch (error) {
+      console.error("Error accessing pollution data:", error);
+      // Use saved data or default values
+      ReportGenerator.exportPDF();
+    }
+  };
+
+  const handlePolicyRecommendations = () => {
+    setShowPolicyModal(true);
+  };
 
   return (
     <header className="bg-gradient-to-r from-indigo-900 via-blue-800 to-purple-900 text-white shadow-2xl relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-green-500/10"></div>
       <div className="absolute -top-4 -right-4 w-24 h-24 bg-orange-400/20 rounded-full animate-pulse"></div>
-      <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-green-400/20 rounded-full animate-bounce"></div>
+      {/* Fixed positioning to keep the ball visible during bounce animation */}
+      <div className="absolute bottom-4 left-4 w-16 h-16 bg-green-400/10 rounded-full animate-pulse"></div>
       
       <div className="container mx-auto px-6 py-6 relative z-10">
         <div className="flex justify-between items-center">
@@ -31,13 +65,19 @@ const Header = () => {
           
           {/* Actions */}
           <div className="hidden lg:flex items-center space-x-3">
-            <button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+            <button 
+              onClick={handleExportReport}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               Export Report
             </button>
-            <button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg">
+            <button 
+              onClick={handlePolicyRecommendations}
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -60,16 +100,27 @@ const Header = () => {
         {isMenuOpen && (
           <div className="lg:hidden mt-6 pb-4 border-t border-white/20 pt-4 animate-slideDown">
             <div className="flex flex-col space-y-2">
-              <button className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 rounded-lg text-sm font-semibold">
+              <button 
+                onClick={handleExportReport}
+                className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2 rounded-lg text-sm font-semibold"
+              >
                 Export Report
               </button>
-              <button className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-2 rounded-lg text-sm font-semibold">
+              <button 
+                onClick={handlePolicyRecommendations}
+                className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-2 rounded-lg text-sm font-semibold"
+              >
                 Policy Recommendations
               </button>
             </div>
           </div>
         )}
       </div>
+      
+      {/* Policy Recommendations Modal */}
+      {showPolicyModal && (
+        <PolicyRecommendationsModal onClose={() => setShowPolicyModal(false)} />
+      )}
     </header>
   );
 };

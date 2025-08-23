@@ -53,7 +53,27 @@ function App() {
       const data = await response.json();
       setPollutionData(data);
       
+      // Make data available globally for components that need it
+      window.currentPollutionData = data;
       
+      // Also store selected region for report generation
+      if (data && data.pollutionLevels && data.pollutionLevels.length > 0) {
+        window.selectedRegion = data.pollutionLevels[0].location || filters.region;
+        localStorage.setItem('selectedRegion', window.selectedRegion);
+      } else {
+        window.selectedRegion = filters.region;
+        localStorage.setItem('selectedRegion', filters.region);
+      }
+      
+      // Store full data in localStorage for backup
+      try {
+        localStorage.setItem('currentPollutionData', JSON.stringify({
+          ...data,
+          region: filters.region // Make sure region is always available
+        }));
+      } catch (storageError) {
+        console.warn('Failed to store data in localStorage:', storageError);
+      }
       
     } catch (error) {
       console.error('Error fetching data:', error);
