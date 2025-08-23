@@ -156,20 +156,28 @@ function App() {
         }`}>
           {/* Map Section */}
           <div className={`
-            bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all duration-500 mx-auto
-            ${layoutMode === 'split' ? 'w-full max-w-4xl h-[45vh]' : // Added max-width and centered with mx-auto
-              layoutMode === 'mapFocus' ? 'w-full h-[75vh]' : 
-              'w-full h-[40vh]'}
+            bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all duration-500 mx-auto w-full
+            ${layoutMode === 'split' 
+              ? 'max-w-4xl aspect-[16/9]' // 16:9 aspect ratio for split view
+              : layoutMode === 'mapFocus' 
+                ? 'max-w-5xl aspect-[16/9]' // 16:9 aspect ratio for map focus
+                : 'max-w-4xl aspect-[16/9]' // 16:9 aspect ratio for data focus
+            }
           `}>
-            <Map pollutionData={pollutionData} selectedRegion={filters.region} />
+            <div className="w-full h-full">
+              <Map pollutionData={pollutionData} selectedRegion={filters.region} />
+            </div>
           </div>
           
           {/* Sidebar Section */}
           <div className={`
             transition-all duration-500 mx-auto
-            ${layoutMode === 'split' ? 'w-full max-w-4xl h-auto' : // Added max-width and centered
-              layoutMode === 'mapFocus' ? 'w-full h-auto mt-6' : 
-              'w-full h-auto mb-6'}
+            ${layoutMode === 'split' 
+              ? 'w-full max-w-4xl h-auto' 
+              : layoutMode === 'mapFocus' 
+                ? 'w-full max-w-5xl h-auto mt-4' // Added max-width and reduced margin
+                : 'w-full max-w-4xl h-auto mb-4'  // Added max-width and reduced margin
+            }
           `}>
             <Sidebar
               pollutionData={pollutionData}
