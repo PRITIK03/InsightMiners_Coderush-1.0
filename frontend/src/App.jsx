@@ -1,9 +1,24 @@
 import React, { useState, useEffect } from 'react';
+
 import Header from './components/Header';
 import Map from './components/Map';
 import Sidebar from './components/sidebar/Sidebar';
 import LoadingOverlay from './components/LoadingOverlay';
 import './App.css';
+
+// Helper for localStorage favorites
+const FAVORITES_KEY = 'favoriteLocations';
+function getFavorites() {
+  try {
+    return JSON.parse(localStorage.getItem(FAVORITES_KEY)) || [];
+  } catch {
+    return [];
+  }
+}
+function setFavorites(favs) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+}
+
 
 function App() {
   const [pollutionData, setPollutionData] = useState(null);
@@ -13,8 +28,38 @@ function App() {
   const [selectedArea, setSelectedArea] = useState('');
   const [startDate, setStartDate] = useState('2023-01-01');
   const [endDate, setEndDate] = useState('2023-12-31');
-  const [layoutMode, setLayoutMode] = useState('split');  // 'split', 'mapFocus', 'dataFocus'
+  const [layoutMode, setLayoutMode] = useState('split');
   const [weatherData, setWeatherData] = useState(null);
+  const [favorites, setFavoritesState] = useState(getFavorites());
+  const [showFavAlert, setShowFavAlert] = useState(false);
+  // Check for pollution alert in favorite location
+  useEffect(() => {
+    if (!pollutionData || !pollutionData.pollutionLevels) return;
+    const isFav = favorites.some(fav => fav.district === selectedDistrict && fav.area === selectedArea);
+    if (isFav) {
+      const latest = pollutionData.pollutionLevels[pollutionData.pollutionLevels.length - 1];
+      if (latest && (latest.no2_level > 100 || latest.pm25_level > 50)) {
+        setShowFavAlert(true);
+      } else {
+        setShowFavAlert(false);
+      }
+    } else {
+      setShowFavAlert(false);
+    }
+  }, [pollutionData, favorites, selectedDistrict, selectedArea]);
+
+  // Favorite toggle logic
+  const isCurrentFavorite = favorites.some(fav => fav.district === selectedDistrict && fav.area === selectedArea);
+  const handleToggleFavorite = () => {
+    let newFavs;
+    if (isCurrentFavorite) {
+      newFavs = favorites.filter(fav => !(fav.district === selectedDistrict && fav.area === selectedArea));
+    } else {
+      newFavs = [...favorites, { district: selectedDistrict, area: selectedArea }];
+    }
+    setFavorites(newFavs);
+    setFavoritesState(newFavs);
+  };
 
   useEffect(() => {
     fetchData();
@@ -102,50 +147,34 @@ function App() {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Header />
-      
       <div className="container mx-auto px-4 py-4 flex-1 flex flex-col">
         {/* Layout Toggle Controls */}
         <div className="flex justify-center mb-4 space-x-2">
-          <button 
-            onClick={() => toggleLayoutMode('split')}
-            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${
-              layoutMode === 'split' 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-            </svg>
+          <button onClick={() => toggleLayoutMode('split')} className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${layoutMode === 'split' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" /></svg>
             Split View
           </button>
-          <button 
-            onClick={() => toggleLayoutMode('mapFocus')}
-            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${
-              layoutMode === 'mapFocus' 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-            </svg>
+          <button onClick={() => toggleLayoutMode('mapFocus')} className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${layoutMode === 'mapFocus' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" /></svg>
             Map Focus
           </button>
-          <button 
-            onClick={() => toggleLayoutMode('dataFocus')}
-            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${
-              layoutMode === 'dataFocus' 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+          <button onClick={() => toggleLayoutMode('dataFocus')} className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-300 ${layoutMode === 'dataFocus' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
             Data Focus
           </button>
+          {/* Favorite location star button */}
+          <button onClick={handleToggleFavorite} aria-label={isCurrentFavorite ? 'Remove from favorites' : 'Add to favorites'} className={`ml-4 px-2 py-1 rounded-full border ${isCurrentFavorite ? 'bg-yellow-300 text-yellow-900 border-yellow-400' : 'bg-white text-gray-400 border-gray-300 hover:bg-yellow-100'} transition-colors`} title={isCurrentFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+            {isCurrentFavorite ? '★' : '☆'} Favorite
+          </button>
         </div>
+
+        {/* Pollution alert for favorite location */}
+        {showFavAlert && (
+          <div className="bg-yellow-100 border-l-4 border-yellow-500 p-4 mb-4 rounded-md flex items-center">
+            <span className="text-yellow-700 font-bold mr-2">⚠️ Pollution Alert:</span>
+            <span className="text-yellow-800">High pollution detected in your favorite location!</span>
+          </div>
+        )}
 
         {/* Error message display */}
         {error && (
@@ -157,57 +186,23 @@ function App() {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm text-red-700">
-                  {error}
-                </p>
-                <p className="mt-2 text-xs text-red-600">
-                  Make sure the Flask backend server is running on port 5000.
-                </p>
-                <button
-                  onClick={fetchData}
-                  className="mt-2 px-3 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700"
-                >
-                  Try Again
-                </button>
+                <p className="text-sm text-red-700">{error}</p>
+                <p className="mt-2 text-xs text-red-600">Make sure the Flask backend server is running on port 5000.</p>
+                <button onClick={fetchData} className="mt-2 px-3 py-1 bg-red-600 text-white text-xs rounded-md hover:bg-red-700">Try Again</button>
               </div>
             </div>
           </div>
         )}
 
-        <main className={`flex flex-1 gap-6 ${
-          layoutMode === 'split' ? 'flex-col' : 
-          layoutMode === 'mapFocus' ? 'flex-col' : 
-          'flex-col-reverse'
-        }`}>
+        <main className={`flex flex-1 gap-6 ${layoutMode === 'split' ? 'flex-col' : layoutMode === 'mapFocus' ? 'flex-col' : 'flex-col-reverse'}`}>
           {/* Map Section */}
-          <div className={`
-            bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all duration-500 mx-auto w-full
-            ${layoutMode === 'split' 
-              ? 'max-w-4xl aspect-[16/9]' // 16:9 aspect ratio for split view
-              : layoutMode === 'mapFocus' 
-                ? 'max-w-5xl aspect-[16/9]' // 16:9 aspect ratio for map focus
-                : 'max-w-4xl aspect-[16/9]' // 16:9 aspect ratio for data focus
-            }
-          `}>
+          <div className={`bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 transition-all duration-500 mx-auto w-full ${layoutMode === 'split' ? 'max-w-4xl aspect-[16/9]' : layoutMode === 'mapFocus' ? 'max-w-5xl aspect-[16/9]' : 'max-w-4xl aspect-[16/9]'}`}>
             <div className="w-full h-full">
-              <Map 
-              pollutionData={pollutionData} 
-              selectedDistrict={selectedDistrict}
-              selectedArea={selectedArea} 
-            />
+              <Map pollutionData={pollutionData} selectedDistrict={selectedDistrict} selectedArea={selectedArea} />
             </div>
           </div>
-          
           {/* Sidebar Section */}
-          <div className={`
-            transition-all duration-500 mx-auto
-            ${layoutMode === 'split' 
-              ? 'w-full max-w-4xl h-auto' 
-              : layoutMode === 'mapFocus' 
-                ? 'w-full max-w-5xl h-auto mt-4'
-                : 'w-full max-w-4xl h-auto mb-4'
-            }
-          `}>
+          <div className={`transition-all duration-500 mx-auto ${layoutMode === 'split' ? 'w-full max-w-4xl h-auto' : layoutMode === 'mapFocus' ? 'w-full max-w-5xl h-auto mt-4' : 'w-full max-w-4xl h-auto mb-4'}`}>
             <Sidebar
               pollutionData={pollutionData}
               setPollutionData={setPollutionData}
@@ -221,13 +216,13 @@ function App() {
               setEndDate={setEndDate}
               weatherData={weatherData}
               loading={loading}
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
             />
           </div>
         </main>
       </div>
-      
       {loading && <LoadingOverlay />}
-      
       <footer className="bg-gray-800 text-gray-300 py-4 text-center text-sm">
         <div className="container mx-auto">
           <p>AirWatch India © {new Date().getFullYear()} | Advanced Air Quality Monitoring & Analysis System</p>
