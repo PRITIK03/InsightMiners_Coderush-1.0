@@ -4,6 +4,12 @@ import os
 from services.satellite_service import fetch_sentinel_data, fetch_modis_data
 from services.analysis_service import analyze_pollution_levels, predict_risk_zones
 from services.gis_service import get_region_boundaries
+from services.complaints_service import (
+    init_complaints_db,
+    submit_complaint,
+    get_complaints,
+    update_complaint_status
+)
 
 # Check if weather_service.py exists and import it
 try:
@@ -16,6 +22,24 @@ except ImportError:
 app = Flask(__name__, static_folder='frontend/dist')
 # Enable CORS for the React app
 CORS(app)
+
+# Initialize complaints database
+init_complaints_db()
+
+# Complaint routes
+@app.route('/api/complaints', methods=['POST'])
+def create_complaint():
+    return submit_complaint(request.json)
+
+@app.route('/api/complaints', methods=['GET'])
+def list_complaints():
+    filters = request.args.to_dict() if request.args else None
+    return get_complaints(filters)
+
+@app.route('/api/complaints/<int:complaint_id>', methods=['PUT'])
+def update_complaint(complaint_id):
+    data = request.json
+    return update_complaint_status(complaint_id, data.get('status'))
 
 @app.route('/')
 def index():

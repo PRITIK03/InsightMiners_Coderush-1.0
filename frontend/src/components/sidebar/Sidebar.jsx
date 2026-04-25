@@ -5,16 +5,23 @@ import InsightsTab from './InsightsTab';
 import ImpactTab from './ImpactTab';
 import ForecastsTab from './ForecastsTab';
 import WeatherTab from './WeatherTab';
+import './Sidebar.css';
 
-const Sidebar = ({ 
-  pollutionData, 
-  filters, 
-  onFilterChange, 
-  onUpdate,
-  activeTab,
-  setActiveTab,
-  loading 
+const Sidebar = ({
+  pollutionData,
+  setPollutionData,
+  selectedDistrict,
+  setSelectedDistrict,
+  selectedArea,
+  setSelectedArea,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
+  weatherData,
+  loading
 }) => {
+  const [activeTab, setActiveTab] = React.useState('charts');
   const tabs = [
     { id: 'charts', label: 'Charts', icon: '📊' },
     { id: 'insights', label: 'Insights', icon: '💡' },
@@ -27,10 +34,15 @@ const Sidebar = ({
     <div className="bg-white rounded-2xl shadow-2xl h-full border border-gray-100 overflow-hidden">
       {/* Filter Controls */}
       <div className="bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-200">
-        <FilterControls 
-          filters={filters}
-          onFilterChange={onFilterChange}
-          onUpdate={onUpdate}
+        <FilterControls
+          selectedDistrict={selectedDistrict}
+          setSelectedDistrict={setSelectedDistrict}
+          selectedArea={selectedArea}
+          setSelectedArea={setSelectedArea}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
         />
       </div>
       
@@ -83,7 +95,7 @@ const Sidebar = ({
             <h3 className="text-xl font-semibold text-gray-800 mb-2">No Data Available</h3>
             <p className="text-gray-600 mb-4">Please update your filters and try again to view pollution analytics.</p>
             <button 
-              onClick={onUpdate}
+              onClick={() => setPollutionData(null)}
               className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-300 transform hover:scale-105"
             >
               Refresh Data
@@ -91,11 +103,11 @@ const Sidebar = ({
           </div>
         ) : (
           <div className="animate-fadeIn">
-            {activeTab === 'charts' && <ChartTab pollutionData={pollutionData} />}
-            {activeTab === 'insights' && <InsightsTab pollutionData={pollutionData} />}
-            {activeTab === 'weather' && <WeatherTab pollutionData={pollutionData} />}
-            {activeTab === 'forecasts' && <ForecastsTab pollutionData={pollutionData} />}
-            {activeTab === 'impact' && <ImpactTab pollutionData={pollutionData} />}
+            {activeTab === 'charts' && <ChartTab pollutionData={pollutionData} setPollutionData={setPollutionData} weatherData={weatherData} />}
+            {activeTab === 'insights' && <InsightsTab pollutionData={pollutionData} setPollutionData={setPollutionData} weatherData={weatherData} />}
+            {activeTab === 'weather' && <WeatherTab pollutionData={pollutionData} setPollutionData={setPollutionData} weatherData={weatherData} />}
+            {activeTab === 'forecasts' && <ForecastsTab pollutionData={pollutionData} setPollutionData={setPollutionData} weatherData={weatherData} />}
+            {activeTab === 'impact' && <ImpactTab pollutionData={pollutionData} setPollutionData={setPollutionData} weatherData={weatherData} />}
           </div>
         )}
       </div>

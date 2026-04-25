@@ -1,0 +1,82 @@
+import React from 'react';
+import FilterControls from './sidebar/FilterControls';
+import ChartTab from './sidebar/ChartTab';
+import InsightsTab from './sidebar/InsightsTab';
+import ImpactTab from './sidebar/ImpactTab';
+import ComplaintsTab from './sidebar/ComplaintsTab';
+import './sidebar/Sidebar.css';
+
+const TabContent = ({ activeTab, pollutionData, location }) => {
+  switch (activeTab) {
+    case 'charts':
+      return <ChartTab pollutionData={pollutionData} />;
+    case 'insights':
+      return <InsightsTab pollutionData={pollutionData} />;
+    case 'impact':
+      return <ImpactTab pollutionData={pollutionData} />;
+    case 'complaints':
+      return <ComplaintsTab pollutionData={pollutionData} location={location} />;
+    default:
+      return null;
+  }
+};
+
+const Sidebar = ({ 
+  pollutionData, 
+  filters, 
+  onFilterChange, 
+  onUpdate,
+  activeTab,
+  setActiveTab,
+  loading,
+  location 
+}) => {
+  const tabs = [
+    { id: 'charts', label: 'Charts' },
+    { id: 'insights', label: 'Insights' },
+    { id: 'impact', label: 'Impact' },
+    { id: 'complaints', label: 'Complaints' }
+  ];
+
+  return (
+    <div className="sidebar bg-white rounded-lg shadow-md h-full">
+      <FilterControls 
+        filters={filters}
+        onFilterChange={onFilterChange}
+        onUpdate={onUpdate}
+      />
+      
+      <div className="tab-navigation">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="tab-content">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : !pollutionData ? (
+          <div className="flex justify-center items-center h-64">
+            <p className="text-gray-500">No data available</p>
+          </div>
+        ) : (
+          <TabContent 
+            activeTab={activeTab}
+            pollutionData={pollutionData}
+            location={location}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Sidebar;

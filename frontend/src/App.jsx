@@ -9,30 +9,29 @@ function App() {
   const [pollutionData, setPollutionData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({
-    region: 'Nagpur',
-    startDate: '2023-01-01',
-    endDate: '2023-12-31'
-  });
-  const [activeTab, setActiveTab] = useState('insights');
-  const [layoutMode, setLayoutMode] = useState('split'); // 'split', 'mapFocus', 'dataFocus'
+  const [selectedDistrict, setSelectedDistrict] = useState('Nagpur');
+  const [selectedArea, setSelectedArea] = useState('');
+  const [startDate, setStartDate] = useState('2023-01-01');
+  const [endDate, setEndDate] = useState('2023-12-31');
+  const [layoutMode, setLayoutMode] = useState('split');  // 'split', 'mapFocus', 'dataFocus'
+  const [weatherData, setWeatherData] = useState(null);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedDistrict, selectedArea, startDate, endDate]);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Use the correct API base URL based on environment
       const baseUrl = process.env.NODE_ENV === 'development' 
         ? 'http://localhost:5000' 
         : '';
       
-      const response = await fetch(
-        `${baseUrl}/api/pollution-data?region=${filters.region}&start_date=${filters.startDate}&end_date=${filters.endDate}`,
+      // Fetch pollution data
+      const pollutionResponse = await fetch(
+        `${baseUrl}/api/pollution-data?district=${selectedDistrict}&area=${selectedArea}&start_date=${startDate}&end_date=${endDate}`,
         {
           headers: {
             'Accept': 'application/json'
@@ -40,37 +39,43 @@ function App() {
         }
       );
       
-      // Check if response is ok before parsing JSON
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      if (!pollutionResponse.ok) {
+        throw new Error(`Server returned ${pollutionResponse.status}: ${pollutionResponse.statusText}`);
       }
       
-      const contentType = response.headers.get('content-type');
+      const contentType = pollutionResponse.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
         throw new Error(`Expected JSON response but got ${contentType || 'unknown content type'}`);
       }
       
-      const data = await response.json();
-      setPollutionData(data);
-      
-      // Make data available globally for components that need it
-      window.currentPollutionData = data;
-      
-      // Also store selected region for report generation
-      if (data && data.pollutionLevels && data.pollutionLevels.length > 0) {
-        window.selectedRegion = data.pollutionLevels[0].location || filters.region;
-        localStorage.setItem('selectedRegion', window.selectedRegion);
-      } else {
-        window.selectedRegion = filters.region;
-        localStorage.setItem('selectedRegion', filters.region);
+      const pollutionData = await pollutionResponse.json();
+      setPollutionData(pollutionData);
+
+      // Fetch weather data
+      const weatherResponse = await fetch(
+        `${baseUrl}/api/weather-data?district=${selectedDistrict}&area=${selectedArea}&start_date=${startDate}&end_date=${endDate}`,
+        {
+          headers: {
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!weatherResponse.ok) {
+        throw new Error(`Server returned ${weatherResponse.status}: ${weatherResponse.statusText}`);
       }
+
+      const weatherData = await weatherResponse.json();
+      setWeatherData(weatherData);
       
-      // Store full data in localStorage for backup
+      // Store data in localStorage for backup
       try {
         localStorage.setItem('currentPollutionData', JSON.stringify({
-          ...data,
-          region: filters.region // Make sure region is always available
+          ...pollutionData,
+          district: selectedDistrict,
+          area: selectedArea
         }));
+        localStorage.setItem('currentWeatherData', JSON.stringify(weatherData));
       } catch (storageError) {
         console.warn('Failed to store data in localStorage:', storageError);
       }
@@ -185,7 +190,11 @@ function App() {
             }
           `}>
             <div className="w-full h-full">
-              <Map pollutionData={pollutionData} selectedRegion={filters.region} />
+              <Map 
+              pollutionData={pollutionData} 
+              selectedDistrict={selectedDistrict}
+              selectedArea={selectedArea} 
+            />
             </div>
           </div>
           
@@ -195,19 +204,23 @@ function App() {
             ${layoutMode === 'split' 
               ? 'w-full max-w-4xl h-auto' 
               : layoutMode === 'mapFocus' 
-                ? 'w-full max-w-5xl h-auto mt-4' // Added max-width and reduced margin
-                : 'w-full max-w-4xl h-auto mb-4'  // Added max-width and reduced margin
+                ? 'w-full max-w-5xl h-auto mt-4'
+                : 'w-full max-w-4xl h-auto mb-4'
             }
           `}>
             <Sidebar
               pollutionData={pollutionData}
-              filters={filters}
-              onFilterChange={handleFilterChange}
-              onUpdate={fetchData}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
+              setPollutionData={setPollutionData}
+              selectedDistrict={selectedDistrict}
+              setSelectedDistrict={setSelectedDistrict}
+              selectedArea={selectedArea}
+              setSelectedArea={setSelectedArea}
+              startDate={startDate}
+              setStartDate={setStartDate}
+              endDate={endDate}
+              setEndDate={setEndDate}
+              weatherData={weatherData}
               loading={loading}
-              error={error}
             />
           </div>
         </main>

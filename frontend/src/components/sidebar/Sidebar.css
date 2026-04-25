@@ -1,0 +1,105 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100%;
+  background-color: white;
+}
+
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f8fafc;
+  padding: 1rem;
+}
+
+.tab-panel {
+  background-color: white;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.tab-navigation {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: white;
+  z-index: 10;
+  padding: 0 1rem;
+}
+
+.tab-button {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #4a5568;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  margin-right: 0.5rem;
+}
+
+.tab-button:hover {
+  color: #2d3748;
+}
+
+.tab-button.active {
+  color: #4299e1;
+  font-weight: 500;
+}
+
+.tab-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #4299e1;
+}
+
+.tab-panel {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1rem;
+}
+
+/* Complaints specific styles */
+.complaints-section {
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.complaints-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.complaints-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+
+@media (max-width: 768px) {
+  .tab-navigation {
+    overflow-x: auto;
+    padding: 0;
+  }
+
+  .tab-button {
+    flex: 1;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  .complaints-grid {
+    grid-template-columns: 1fr;
+  }
+}

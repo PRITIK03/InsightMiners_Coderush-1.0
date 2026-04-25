@@ -1,0 +1,199 @@
+.complaints-tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem;
+  background-color: #f8fafc;
+  overflow-y: auto;
+}
+
+.complaints-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.complaints-header h2 {
+  font-size: 1.5rem;
+  color: #2d3748;
+  margin: 0;
+}
+
+.new-complaint-btn,
+.raise-complaint-btn {
+  padding: 0.5rem 1rem;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.new-complaint-btn:hover,
+.raise-complaint-btn:hover {
+  background-color: #3182ce;
+}
+
+.pollution-alert {
+  background-color: #fff5f5;
+  border: 1px solid #fc8181;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pollution-alert h3 {
+  color: #e53e3e;
+  margin: 0 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pollution-alert p {
+  color: #e53e3e;
+  margin: 0;
+  opacity: 0.8;
+}
+
+.charts-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chart-wrapper {
+  height: 300px;
+  position: relative;
+}
+
+.complaints-dashboard {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.complaints-list {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.complaints-list h3 {
+  margin: 0 0 1rem 0;
+  color: #2d3748;
+}
+
+.complaints-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.complaint-card {
+  background-color: #f8fafc;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.complaint-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.complaint-type {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4a5568;
+  padding: 0.25rem 0.5rem;
+  background-color: #edf2f7;
+  border-radius: 1rem;
+}
+
+.complaint-status {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+}
+
+.status-pending {
+  background-color: #fefcbf;
+  color: #744210;
+}
+
+.status-in-progress {
+  background-color: #e9f6fd;
+  color: #2b6cb0;
+}
+
+.status-resolved {
+  background-color: #c6f6d5;
+  color: #2f855a;
+}
+
+.complaint-description {
+  font-size: 0.875rem;
+  color: #4a5568;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.complaint-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+.no-complaints {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #718096;
+}
+
+.no-complaints p:first-child {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+/* Complaint Types */
+.air_quality { background-color: #ebf8ff; color: #2c5282; }
+.industrial_emission { background-color: #faf5ff; color: #553c9a; }
+.vehicle_pollution { background-color: #f0fff4; color: #276749; }
+.construction_dust { background-color: #fffaf0; color: #975a16; }
+.burning_waste { background-color: #fff5f5; color: #c53030; }
+.other { background-color: #f7fafc; color: #2d3748; }
+
+@media (max-width: 768px) {
+  .charts-container {
+    grid-template-columns: 1fr;
+  }
+
+  .complaints-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .complaints-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .new-complaint-btn,
+  .raise-complaint-btn {
+    width: 100%;
+  }
+}
